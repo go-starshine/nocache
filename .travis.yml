@@ -1,0 +1,43 @@
+language: go
+
+os:
+  - osx
+  - windows
+  - linux
+
+go:
+  - 1.15.x
+  - 1.16.x
+
+before_install:
+  - if [[ "${GO111MODULE}" = "on" ]]; then mkdir "${HOME}/go"; export GOPATH="${HOME}/go";
+    export PATH="$GOPATH/bin:$PATH"; fi
+  - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
+
+install:
+  - go get -u golang.org/x/lint/golint
+  - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+  - curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+
+script:
+  - go get -v ./...
+  - |-
+    case $TRAVIS_OS_NAME in
+      linux|osx)
+        golint ./... | reviewdog -f=golint -reporter=github-check
+        golangci-lint run --out-format=line-number -E goimports -E misspell | reviewdog -f=golangci-lint -reporter=github-check
+        golint ./... | reviewdog -f=golint -reporter=github-pr-review
+        golangci-lint run --out-format=line-number -E goimports -E misspell | reviewdog -f=golangci-lint -reporter=github-pr-review
+        ;;
+    esac
+  - go test -v -benchmem -test.bench=".*" -coverprofile=coverage.txt -covermode=atomic  ./...
+
+after_success:
+  - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then curl -s https://codecov.io/bash >
+    .codecov && chmod +x .codecov && ./.codecov; else bash <(curl -s https://codecov.io/bash);
+    fi
+
+env:
+  global:
+    - GO111MODULE=on
+    - secure: EbfXAAAkKaqAm2ZLgRR5+XlxKWhqXVVHFG1YDHFDgmaveO4gqwVnGs2pHFPi/259/Nxjlr/CrEXJ23fHXM/y7Jvank3o0cajyvdpSkpkt52PEvL8Y8tZpAvwf5VlTkXW+z0K2VS/Ke36pJm/ZxUnc2BzUDaZv7iGo9avQkeVPopCZKbhPbPkP7JDkxor/3QDj8w3YyDmI4w8XcIgW5Bx6/xTh7PhiaJdSHqJBlrkKP4DUrlX58lR3DHeRWz7xWSfYe0oKCmdGaghvI6dUe4ytnbf9AFYBFtwGbw3/E8UYxYJZjAiNaBlMhVanh9fCQCg2airrS8ePQxDVHKxNgkHDOb0ektzOmP0B+SelFvSNFCQ6soRuHcbWIFsdGDT3IAB3ubIKDNE6rTWWlyjwDJvHcD+UfJLJqFhvzq12WApLQGTabs4BM3zf/aG411GydSnek/mxdHn2Y6EDyDYsiKDhJK6CUODTRa59jYhsKfhu91eOBaLc8kvT3kXTU19DOnz6bDMLBpv4FdR6DaSGkKPhSVlND1EtGyD+0J/ty5F9xRcD3x4wnemfKjD/LH25aNWq44WAYQv6fAICVgJhk4/sEm19y7slyNL8Lj+iyA0n54GaGsYoJmWVPlqno4VLlUfQhHhyZlRyoJabeIxB6D4Om37I48/UpwP+66C77buLqE=
