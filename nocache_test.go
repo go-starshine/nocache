@@ -22,6 +22,9 @@ func Test_NoCacheHeaders(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	r, _ := http.NewRequestWithContext(context.Background(), "GET", "/", nil)
+	for _, k := range etagHeaders {
+		r.Header.Add(k, "value")
+	}
 	m.ServeHTTP(recorder, r)
 
 	for key, value := range responseHeaders {
